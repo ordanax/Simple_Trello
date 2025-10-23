@@ -131,6 +131,45 @@
             font-weight: 600;
             color: #333;
             font-size: 1.1em;
+            flex: 1;
+        }
+
+        .task-priority {
+            display: flex;
+            gap: 6px;
+            margin-left: 10px;
+        }
+
+        .priority-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            opacity: 0.4;
+        }
+
+        .priority-dot:hover {
+            transform: scale(1.3);
+            opacity: 0.7;
+        }
+
+        .priority-dot.active {
+            opacity: 1;
+            transform: scale(1.2);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .priority-high {
+            background: #ff4757;
+        }
+
+        .priority-medium {
+            background: #ffa502;
+        }
+
+        .priority-low {
+            background: #2ed573;
         }
 
         .delete-task {
@@ -141,6 +180,7 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 0.8em;
+            margin-left: 10px;
         }
 
         .task-description {
@@ -250,6 +290,42 @@
             border-color: #007bff;
         }
 
+        .priority-selection {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .priority-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: background 0.3s;
+        }
+
+        .priority-option:hover {
+            background: rgba(0, 123, 255, 0.1);
+        }
+
+        .priority-option.selected {
+            background: rgba(0, 123, 255, 0.15);
+        }
+
+        .priority-preview {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+
+        .priority-preview.active {
+            transform: scale(1.2);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
         .form-actions {
             display: flex;
             gap: 10px;
@@ -264,13 +340,25 @@
         .btn-cancel:hover {
             background: #545b62;
         }
+
+        .task-high {
+            border-left-color: #ff4757;
+        }
+
+        .task-medium {
+            border-left-color: #ffa502;
+        }
+
+        .task-low {
+            border-left-color: #2ed573;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>🚀 Simple Trello</h1>
-            <p>Перетаскивайте задачи между колонками!</p>
+            <p>Перетаскивайте задачи между колонками! Используйте цветные точки для приоритета.</p>
         </div>
 
         <div class="controls">
@@ -310,6 +398,23 @@
                 <label for="taskDescription">Описание:</label>
                 <textarea id="taskDescription" rows="3" placeholder="Описание задачи..."></textarea>
             </div>
+            <div class="form-group">
+                <label>Приоритет:</label>
+                <div class="priority-selection">
+                    <div class="priority-option" onclick="selectPriority('high')">
+                        <div class="priority-preview priority-high"></div>
+                        <span>Высокий</span>
+                    </div>
+                    <div class="priority-option" onclick="selectPriority('medium')">
+                        <div class="priority-preview priority-medium"></div>
+                        <span>Средний</span>
+                    </div>
+                    <div class="priority-option" onclick="selectPriority('low')">
+                        <div class="priority-preview priority-low"></div>
+                        <span>Низкий</span>
+                    </div>
+                </div>
+            </div>
             <div class="form-actions">
                 <button class="btn btn-cancel" onclick="hideAddTaskModal()">Отмена</button>
                 <button class="btn btn-primary" onclick="addNewTask()">Добавить</button>
@@ -320,6 +425,7 @@
     <script>
         let boards = [];
         let currentBoardId = null;
+        let currentPriority = 'medium';
 
         // Инициализация при загрузке
         document.addEventListener('DOMContentLoaded', function() {
@@ -334,28 +440,27 @@
             if (saved) {
                 boards = JSON.parse(saved);
             } else {
-                // Данные по умолчанию
                 boards = [
                     {
                         id: 1,
                         title: '📋 Сделать',
                         tasks: [
-                            { id: 1, title: 'Изучить JavaScript', description: 'Пройти курс по продвинутому JS' },
-                            { id: 2, title: 'Создать проект', description: 'Начать новый проект на React' }
+                            { id: 1, title: 'Изучить JavaScript', description: 'Пройти курс по продвинутому JS', priority: 'high' },
+                            { id: 2, title: 'Создать проект', description: 'Начать новый проект на React', priority: 'medium' }
                         ]
                     },
                     {
                         id: 2,
                         title: '⚡ В работе',
                         tasks: [
-                            { id: 3, title: 'Дизайн сайта', description: 'Создать макет главной страницы' }
+                            { id: 3, title: 'Дизайн сайта', description: 'Создать макет главной страницы', priority: 'low' }
                         ]
                     },
                     {
                         id: 3,
                         title: '✅ Готово',
                         tasks: [
-                            { id: 4, title: 'Настроить окружение', description: 'Установить все необходимые инструменты' }
+                            { id: 4, title: 'Настроить окружение', description: 'Установить все необходимые инструменты', priority: 'medium' }
                         ]
                     }
                 ];
@@ -368,12 +473,20 @@
             localStorage.setItem('trelloData', JSON.stringify(boards));
         }
 
+        // Сортировка задач по приоритету
+        function sortTasksByPriority(tasks) {
+            const priorityOrder = { high: 1, medium: 2, low: 3 };
+            return tasks.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+        }
+
         // Отрисовка колонок
         function renderBoards() {
             const container = document.getElementById('boardsContainer');
             container.innerHTML = '';
 
             boards.forEach(board => {
+                const sortedTasks = sortTasksByPriority([...board.tasks]);
+                
                 const boardElement = document.createElement('div');
                 boardElement.className = 'board';
                 boardElement.setAttribute('data-board-id', board.id);
@@ -391,10 +504,22 @@
                          ondragover="allowDrop(event)"
                          ondragenter="handleDragEnter(event)"
                          ondragleave="handleDragLeave(event)">
-                        ${board.tasks.map(task => `
-                            <div class="task" draggable="true" ondragstart="drag(event)" data-task-id="${task.id}">
+                        ${sortedTasks.map(task => `
+                            <div class="task ${'task-' + task.priority}" 
+                                 draggable="true" 
+                                 ondragstart="drag(event)" 
+                                 ondragend="dragEnd(event)"
+                                 data-task-id="${task.id}">
                                 <div class="task-header">
                                     <div class="task-title">${task.title}</div>
+                                    <div class="task-priority">
+                                        <div class="priority-dot priority-high ${task.priority === 'high' ? 'active' : ''}" 
+                                             onclick="event.stopPropagation(); changeTaskPriority(${board.id}, ${task.id}, 'high')"></div>
+                                        <div class="priority-dot priority-medium ${task.priority === 'medium' ? 'active' : ''}" 
+                                             onclick="event.stopPropagation(); changeTaskPriority(${board.id}, ${task.id}, 'medium')"></div>
+                                        <div class="priority-dot priority-low ${task.priority === 'low' ? 'active' : ''}" 
+                                             onclick="event.stopPropagation(); changeTaskPriority(${board.id}, ${task.id}, 'low')"></div>
+                                    </div>
                                     <button class="delete-task" onclick="deleteTask(${board.id}, ${task.id})">×</button>
                                 </div>
                                 <div class="task-description">${task.description}</div>
@@ -407,6 +532,36 @@
             });
         }
 
+        // Изменение приоритета задачи
+        function changeTaskPriority(boardId, taskId, newPriority) {
+            const board = boards.find(b => b.id === boardId);
+            if (board) {
+                const task = board.tasks.find(t => t.id === taskId);
+                if (task) {
+                    task.priority = newPriority;
+                    saveToLocalStorage();
+                    renderBoards();
+                }
+            }
+        }
+
+        // Выбор приоритета при создании задачи
+        function selectPriority(priority) {
+            currentPriority = priority;
+            
+            document.querySelectorAll('.priority-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            
+            document.querySelectorAll('.priority-preview').forEach(preview => {
+                preview.classList.remove('active');
+            });
+            
+            event.currentTarget.classList.add('selected');
+            const preview = event.currentTarget.querySelector('.priority-preview');
+            preview.classList.add('active');
+        }
+
         // Drag and Drop функции
         function allowDrop(ev) {
             ev.preventDefault();
@@ -415,6 +570,11 @@
         function drag(ev) {
             ev.dataTransfer.setData("text", ev.target.getAttribute('data-task-id'));
             ev.target.classList.add('dragging');
+        }
+
+        function dragEnd(ev) {
+            // Убираем класс dragging при завершении перетаскивания (даже если отменили)
+            ev.target.classList.remove('dragging');
         }
 
         function drop(ev) {
@@ -431,6 +591,11 @@
             document.querySelectorAll('.tasks-container').forEach(container => {
                 container.classList.remove('drag-over');
             });
+
+            // Убираем класс dragging со всех задач
+            document.querySelectorAll('.task.dragging').forEach(task => {
+                task.classList.remove('dragging');
+            });
         }
 
         function handleDragEnter(ev) {
@@ -441,7 +606,18 @@
 
         function handleDragLeave(ev) {
             if (ev.target.classList.contains('tasks-container')) {
-                ev.target.classList.remove('drag-over');
+                // Проверяем, что мы действительно вышли из контейнера, а не просто перешли на дочерний элемент
+                const rect = ev.target.getBoundingClientRect();
+                const isOutside = (
+                    ev.clientX <= rect.left ||
+                    ev.clientX >= rect.right ||
+                    ev.clientY <= rect.top ||
+                    ev.clientY >= rect.bottom
+                );
+                
+                if (isOutside) {
+                    ev.target.classList.remove('drag-over');
+                }
             }
         }
 
@@ -457,7 +633,6 @@
             let sourceBoard = null;
             let task = null;
 
-            // Находим задачу и её исходную колонку
             boards.forEach(board => {
                 const taskIndex = board.tasks.findIndex(t => t.id === taskId);
                 if (taskIndex !== -1) {
@@ -467,7 +642,6 @@
                 }
             });
 
-            // Добавляем задачу в целевую колонку
             if (task && sourceBoard.id !== targetBoardId) {
                 const targetBoard = boards.find(b => b.id === targetBoardId);
                 if (targetBoard) {
@@ -515,10 +689,24 @@
         // Управление задачами
         function showAddTaskModal(boardId) {
             currentBoardId = boardId;
+            currentPriority = 'medium';
             document.getElementById('addTaskModal').style.display = 'flex';
             document.getElementById('taskTitle').value = '';
             document.getElementById('taskDescription').value = '';
             document.getElementById('taskTitle').focus();
+            
+            document.querySelectorAll('.priority-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            document.querySelectorAll('.priority-preview').forEach(preview => {
+                preview.classList.remove('active');
+            });
+            
+            const mediumOption = document.querySelector('.priority-option:nth-child(2)');
+            if (mediumOption) {
+                mediumOption.classList.add('selected');
+                mediumOption.querySelector('.priority-preview').classList.add('active');
+            }
         }
 
         function hideAddTaskModal() {
@@ -533,7 +721,8 @@
                 const newTask = {
                     id: Date.now(),
                     title: title,
-                    description: description
+                    description: description,
+                    priority: currentPriority
                 };
 
                 const board = boards.find(b => b.id === currentBoardId);
@@ -560,10 +749,10 @@
         // Дополнительные функции
         function addSampleData() {
             const sampleTasks = [
-                { title: 'Изучить React', description: 'Пройти официальный туториал' },
-                { title: 'Создать API', description: 'Разработать backend для проекта' },
-                { title: 'Тестирование', description: 'Написать unit-тесты' },
-                { title: 'Деплой', description: 'Выложить проект на сервер' }
+                { title: 'Срочный багфикс', description: 'Починить критический баг в продакшене', priority: 'high' },
+                { title: 'Изучить React', description: 'Пройти официальный туториал', priority: 'medium' },
+                { title: 'Обновить документацию', description: 'Дописать README.md', priority: 'low' },
+                { title: 'Code review', description: 'Проверить пул-реквест коллеги', priority: 'medium' }
             ];
 
             sampleTasks.forEach(task => {
@@ -581,20 +770,25 @@
         }
 
         function setupEventListeners() {
-            // Закрытие модальных окон по клику вне области
             document.addEventListener('click', function(event) {
                 if (event.target.classList.contains('modal')) {
                     event.target.style.display = 'none';
                 }
             });
 
-            // Enter в модальных окнах
             document.getElementById('boardTitle').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') addNewBoard();
             });
 
             document.getElementById('taskTitle').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') addNewTask();
+            });
+
+            // Глобальный обработчик для сброса состояния перетаскивания
+            document.addEventListener('dragend', function(ev) {
+                if (ev.target.classList.contains('task')) {
+                    ev.target.classList.remove('dragging');
+                }
             });
         }
     </script>
