@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Trello</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .boards-container {
+            display: flex;
+            gap: 20px;
+            overflow-x: auto;
+            padding: 10px 0;
+        }
+
+        .board {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 20px;
+            min-width: 300px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .board-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .board-title {
+            font-size: 1.4em;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .delete-board {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .delete-board:hover {
+            background: #ff3742;
+        }
+
+        .add-task-btn {
+            width: 100%;
+            padding: 12px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-bottom: 15px;
+            transition: background 0.3s;
+        }
+
+        .add-task-btn:hover {
+            background: #45a049;
+        }
+
+        .tasks-container {
+            min-height: 100px;
+            padding: 10px;
+            border-radius: 8px;
+            background: rgba(240, 240, 240, 0.5);
+        }
+
+        .task {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            cursor: move;
+            border-left: 4px solid #007bff;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .task:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .task-title {
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        .delete-task {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 3px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+
+        .task-description {
+            color: #666;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        .dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+        }
+
+        .drag-over {
+            background: rgba(100, 200, 255, 0.2);
+            border: 2px dashed #007bff;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #1e7e34;
+            transform: translateY(-2px);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal h3 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .btn-cancel {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-cancel:hover {
+            background: #545b62;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Simple Trello</h1>
+            <p>Перетаскивайте задачи между колонками!</p>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-primary" onclick="showAddBoardModal()">➕ Добавить колонку</button>
+            <button class="btn btn-success" onclick="addSampleData()">🎯 Добавить примеры</button>
+        </div>
+
+        <div class="boards-container" id="boardsContainer">
+            <!-- Колонки будут добавляться сюда -->
+        </div>
+    </div>
+
+    <!-- Модальное окно для добавления колонки -->
+    <div class="modal" id="addBoardModal">
+        <div class="modal-content">
+            <h3>Добавить новую колонку</h3>
+            <div class="form-group">
+                <label for="boardTitle">Название колонки:</label>
+                <input type="text" id="boardTitle" placeholder="Например: В работе">
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-cancel" onclick="hideAddBoardModal()">Отмена</button>
+                <button class="btn btn-primary" onclick="addNewBoard()">Добавить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для добавления задачи -->
+    <div class="modal" id="addTaskModal">
+        <div class="modal-content">
+            <h3>Добавить новую задачу</h3>
+            <div class="form-group">
+                <label for="taskTitle">Название задачи:</label>
+                <input type="text" id="taskTitle" placeholder="Например: Создать дизайн">
+            </div>
+            <div class="form-group">
+                <label for="taskDescription">Описание:</label>
+                <textarea id="taskDescription" rows="3" placeholder="Описание задачи..."></textarea>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-cancel" onclick="hideAddTaskModal()">Отмена</button>
+                <button class="btn btn-primary" onclick="addNewTask()">Добавить</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let boards = [];
+        let currentBoardId = null;
+
+        // Инициализация при загрузке
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFromLocalStorage();
+            renderBoards();
+            setupEventListeners();
+        });
+
+        // Загрузка из LocalStorage
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('trelloData');
+            if (saved) {
+                boards = JSON.parse(saved);
+            } else {
+                // Данные по умолчанию
+                boards = [
+                    {
+                        id: 1,
+                        title: '📋 Сделать',
+                        tasks: [
+                            { id: 1, title: 'Изучить JavaScript', description: 'Пройти курс по продвинутому JS' },
+                            { id: 2, title: 'Создать проект', description: 'Начать новый проект на React' }
+                        ]
+                    },
+                    {
+                        id: 2,
+                        title: '⚡ В работе',
+                        tasks: [
+                            { id: 3, title: 'Дизайн сайта', description: 'Создать макет главной страницы' }
+                        ]
+                    },
+                    {
+                        id: 3,
+                        title: '✅ Готово',
+                        tasks: [
+                            { id: 4, title: 'Настроить окружение', description: 'Установить все необходимые инструменты' }
+                        ]
+                    }
+                ];
+                saveToLocalStorage();
+            }
+        }
+
+        // Сохранение в LocalStorage
+        function saveToLocalStorage() {
+            localStorage.setItem('trelloData', JSON.stringify(boards));
+        }
+
+        // Отрисовка колонок
+        function renderBoards() {
+            const container = document.getElementById('boardsContainer');
+            container.innerHTML = '';
+
+            boards.forEach(board => {
+                const boardElement = document.createElement('div');
+                boardElement.className = 'board';
+                boardElement.setAttribute('data-board-id', board.id);
+
+                boardElement.innerHTML = `
+                    <div class="board-header">
+                        <div class="board-title">${board.title}</div>
+                        <button class="delete-board" onclick="deleteBoard(${board.id})">×</button>
+                    </div>
+                    <button class="add-task-btn" onclick="showAddTaskModal(${board.id})">
+                        + Добавить задачу
+                    </button>
+                    <div class="tasks-container" 
+                         ondrop="drop(event)" 
+                         ondragover="allowDrop(event)"
+                         ondragenter="handleDragEnter(event)"
+                         ondragleave="handleDragLeave(event)">
+                        ${board.tasks.map(task => `
+                            <div class="task" draggable="true" ondragstart="drag(event)" data-task-id="${task.id}">
+                                <div class="task-header">
+                                    <div class="task-title">${task.title}</div>
+                                    <button class="delete-task" onclick="deleteTask(${board.id}, ${task.id})">×</button>
+                                </div>
+                                <div class="task-description">${task.description}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+
+                container.appendChild(boardElement);
+            });
+        }
+
+        // Drag and Drop функции
+        function allowDrop(ev) {
+            ev.preventDefault();
+        }
+
+        function drag(ev) {
+            ev.dataTransfer.setData("text", ev.target.getAttribute('data-task-id'));
+            ev.target.classList.add('dragging');
+        }
+
+        function drop(ev) {
+            ev.preventDefault();
+            const taskId = parseInt(ev.dataTransfer.getData("text"));
+            const targetBoard = findParentBoard(ev.target);
+            
+            if (targetBoard) {
+                const targetBoardId = parseInt(targetBoard.getAttribute('data-board-id'));
+                moveTask(taskId, targetBoardId);
+            }
+
+            // Убираем классы drag-over
+            document.querySelectorAll('.tasks-container').forEach(container => {
+                container.classList.remove('drag-over');
+            });
+        }
+
+        function handleDragEnter(ev) {
+            if (ev.target.classList.contains('tasks-container')) {
+                ev.target.classList.add('drag-over');
+            }
+        }
+
+        function handleDragLeave(ev) {
+            if (ev.target.classList.contains('tasks-container')) {
+                ev.target.classList.remove('drag-over');
+            }
+        }
+
+        function findParentBoard(element) {
+            while (element && !element.getAttribute('data-board-id')) {
+                element = element.parentElement;
+            }
+            return element;
+        }
+
+        // Перемещение задачи
+        function moveTask(taskId, targetBoardId) {
+            let sourceBoard = null;
+            let task = null;
+
+            // Находим задачу и её исходную колонку
+            boards.forEach(board => {
+                const taskIndex = board.tasks.findIndex(t => t.id === taskId);
+                if (taskIndex !== -1) {
+                    sourceBoard = board;
+                    task = board.tasks[taskIndex];
+                    board.tasks.splice(taskIndex, 1);
+                }
+            });
+
+            // Добавляем задачу в целевую колонку
+            if (task && sourceBoard.id !== targetBoardId) {
+                const targetBoard = boards.find(b => b.id === targetBoardId);
+                if (targetBoard) {
+                    targetBoard.tasks.push(task);
+                    saveToLocalStorage();
+                    renderBoards();
+                }
+            }
+        }
+
+        // Управление колонками
+        function showAddBoardModal() {
+            document.getElementById('addBoardModal').style.display = 'flex';
+            document.getElementById('boardTitle').value = '';
+            document.getElementById('boardTitle').focus();
+        }
+
+        function hideAddBoardModal() {
+            document.getElementById('addBoardModal').style.display = 'none';
+        }
+
+        function addNewBoard() {
+            const title = document.getElementById('boardTitle').value.trim();
+            if (title) {
+                const newBoard = {
+                    id: Date.now(),
+                    title: title,
+                    tasks: []
+                };
+                boards.push(newBoard);
+                saveToLocalStorage();
+                renderBoards();
+                hideAddBoardModal();
+            }
+        }
+
+        function deleteBoard(boardId) {
+            if (confirm('Удалить эту колонку и все задачи в ней?')) {
+                boards = boards.filter(board => board.id !== boardId);
+                saveToLocalStorage();
+                renderBoards();
+            }
+        }
+
+        // Управление задачами
+        function showAddTaskModal(boardId) {
+            currentBoardId = boardId;
+            document.getElementById('addTaskModal').style.display = 'flex';
+            document.getElementById('taskTitle').value = '';
+            document.getElementById('taskDescription').value = '';
+            document.getElementById('taskTitle').focus();
+        }
+
+        function hideAddTaskModal() {
+            document.getElementById('addTaskModal').style.display = 'none';
+        }
+
+        function addNewTask() {
+            const title = document.getElementById('taskTitle').value.trim();
+            const description = document.getElementById('taskDescription').value.trim();
+            
+            if (title && currentBoardId) {
+                const newTask = {
+                    id: Date.now(),
+                    title: title,
+                    description: description
+                };
+
+                const board = boards.find(b => b.id === currentBoardId);
+                if (board) {
+                    board.tasks.push(newTask);
+                    saveToLocalStorage();
+                    renderBoards();
+                    hideAddTaskModal();
+                }
+            }
+        }
+
+        function deleteTask(boardId, taskId) {
+            if (confirm('Удалить эту задачу?')) {
+                const board = boards.find(b => b.id === boardId);
+                if (board) {
+                    board.tasks = board.tasks.filter(task => task.id !== taskId);
+                    saveToLocalStorage();
+                    renderBoards();
+                }
+            }
+        }
+
+        // Дополнительные функции
+        function addSampleData() {
+            const sampleTasks = [
+                { title: 'Изучить React', description: 'Пройти официальный туториал' },
+                { title: 'Создать API', description: 'Разработать backend для проекта' },
+                { title: 'Тестирование', description: 'Написать unit-тесты' },
+                { title: 'Деплой', description: 'Выложить проект на сервер' }
+            ];
+
+            sampleTasks.forEach(task => {
+                const todoBoard = boards.find(b => b.title.includes('Сделать'));
+                if (todoBoard) {
+                    todoBoard.tasks.push({
+                        id: Date.now() + Math.random(),
+                        ...task
+                    });
+                }
+            });
+
+            saveToLocalStorage();
+            renderBoards();
+        }
+
+        function setupEventListeners() {
+            // Закрытие модальных окон по клику вне области
+            document.addEventListener('click', function(event) {
+                if (event.target.classList.contains('modal')) {
+                    event.target.style.display = 'none';
+                }
+            });
+
+            // Enter в модальных окнах
+            document.getElementById('boardTitle').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') addNewBoard();
+            });
+
+            document.getElementById('taskTitle').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') addNewTask();
+            });
+        }
+    </script>
+</body>
+</html>
